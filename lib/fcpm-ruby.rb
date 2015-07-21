@@ -1,6 +1,7 @@
 require 'bundler'
 require 'yaml'
 require 'open-uri'
+require 'net/scp'
 
 module FCPM
 
@@ -108,7 +109,7 @@ module FCPM
 
       case uri.scheme
       when "file" then _push_build_to_file_host(uri, filename)
-      #when "scp"  then _push_build_to_scp_host(uri, filename)
+      when "scp"  then _push_build_to_scp_host(uri, filename)
       #when "sftp" then _push_build_to_sftp_host(uri, filename)
       else raise "unsupported host scheme: #{uri}"
       end
@@ -117,6 +118,16 @@ module FCPM
     def _push_build_to_file_host(uri, filename)
       FileUtils.mkdir_p(uri.path)
       FileUtils.cp(filename, uri.path)
+    end
+
+    def _push_build_to_scp_host(uri, filename)
+      user = uri.user
+      host = uri.host
+      path = uri.path
+
+      Net::SCP.upload!(host, user, filename, path,
+        ssh: { keys: [ FCPM.config['key'] ],
+               verbose: :warn })
     end
   end
 end
