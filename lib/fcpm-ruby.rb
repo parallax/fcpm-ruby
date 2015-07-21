@@ -38,7 +38,7 @@ module FCPM
         uri = URI.parse(File.join(FCPM.config['source'], spec.explicit_file_name))
 
         begin
-          body = uri.read
+          body = _read_from_uri(uri)
           cache_dir = File.dirname(spec.cached_file)
           FileUtils.mkdir_p(cache_dir)
           File.open(spec.cached_file, "wb") { |f| f.write(body) }
@@ -53,6 +53,16 @@ module FCPM
         File.join(Gem.dir, "cache", spec.full_name + ".gem")
       else
         super
+      end
+    end
+
+    def _read_from_uri(uri)
+      if uri.respond_to?(:read)
+        uri.read
+      elsif uri.scheme == "file"
+        File.read(uri.path)
+      else
+        raise NotImplementedError, "can't read from #{uri}"
       end
     end
 
@@ -77,6 +87,8 @@ module FCPM
         FileUtils.mkdir_p(cache_dir)
         system "tar -czf #{spec.cached_file} -C #{temp_path} ."
         FileUtils.rm_rf(temp_path)
+
+        _push_build_to_host(spec.cached_file)
       end
 
       if spec.cached_file_exists?
@@ -90,6 +102,22 @@ module FCPM
       spec
     end
 
+    def _push_build_to_host(filename)
+      host = FCPM.config['host'] or return
+      uri = URI.parse(host)
+
+      case uri.scheme
+      when "file" then _push_build_to_file_host(uri, filename)
+      #when "scp"  then _push_build_to_scp_host(uri, filename)
+      #when "sftp" then _push_build_to_sftp_host(uri, filename)
+      else raise "unsupported host scheme: #{uri}"
+      end
+    end
+
+    def _push_build_to_file_host(uri, filename)
+      FileUtils.mkdir_p(uri.path)
+      FileUtils.cp(filename, uri.path)
+    end
   end
 end
 
