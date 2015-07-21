@@ -110,7 +110,6 @@ module FCPM
       case uri.scheme
       when "file" then _push_build_to_file_host(uri, filename)
       when "scp"  then _push_build_to_scp_host(uri, filename)
-      #when "sftp" then _push_build_to_sftp_host(uri, filename)
       else raise "unsupported host scheme: #{uri}"
       end
     end
