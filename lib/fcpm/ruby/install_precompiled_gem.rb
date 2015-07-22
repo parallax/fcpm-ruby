@@ -1,3 +1,4 @@
+require 'rubygems/package'
 require 'net/scp'
 require 'open-uri'
 
@@ -19,9 +20,7 @@ module FCPM
           super
           @install_dir, @gem_home = old_install_dir, old_gem_home
 
-          cache_dir = File.dirname(spec.cached_file)
-          FileUtils.mkdir_p(cache_dir)
-          system "tar -czf #{spec.cached_file} -C #{temp_path} ."
+          _build_package(temp_path, spec.cached_file)
           FileUtils.rm_rf(temp_path)
 
           _push_build_to_host(spec.cached_file)
@@ -62,6 +61,41 @@ module FCPM
         Net::SCP.upload!(host, user, filename, path,
           ssh: { keys: [ FCPM.config['key'] ],
                  verbose: :warn })
+      end
+
+      def _build_package(root, target)
+        dir = File.dirname(target)
+        root = root + "/" unless root[-1] == "/"
+
+        FileUtils.mkdir_p(dir)
+
+        File.open(target, "wb") do |out|
+          Zlib::GzipWriter.wrap(out, Zlib::BEST_COMPRESSION) do |gz|
+            Gem::Package::TarWriter.new(gz) do |tar|
+
+              stack = [root]
+              while stack.any?
+                path = stack.pop
+
+                Dir.foreach(path) do |element|
+                  next if element == '.' || element == '..'
+                  full = File.join(path, element)
+
+                  if File.directory?(full)
+                    stack.push(full)
+                  else
+                    stat = File.stat(full)
+                    name = full[root.length..-1]
+                    tar.add_file_simple(name, stat.mode, stat.size) do |io|
+                      io.write(File.read(full))
+                    end
+                  end
+                end
+
+              end
+            end
+          end
+        end
       end
     end
 
