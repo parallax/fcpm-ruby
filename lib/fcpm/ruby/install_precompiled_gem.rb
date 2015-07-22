@@ -27,8 +27,7 @@ module FCPM
         end
 
         if spec.cached_file_exists?
-          FileUtils.mkdir_p(@install_dir)
-          system "tar -xzf #{spec.cached_file} -C #{@install_dir}"
+          _unpack_package(spec.cached_file, @install_dir)
         else
           # FIXME: something went wrong?
           abort "something died?"
@@ -79,19 +78,42 @@ module FCPM
 
                 Dir.foreach(path) do |element|
                   next if element == '.' || element == '..'
-                  full = File.join(path, element)
 
-                  if File.directory?(full)
+                  full = File.join(path, element)
+                  name = full[root.length..-1]
+                  stat = File.stat(full)
+
+                  if stat.directory?
+                    tar.mkdir(name, stat.mode)
                     stack.push(full)
                   else
-                    stat = File.stat(full)
-                    name = full[root.length..-1]
                     tar.add_file_simple(name, stat.mode, stat.size) do |io|
                       io.write(File.read(full))
                     end
                   end
                 end
 
+              end
+            end
+          end
+        end
+      end
+
+      def _unpack_package(package, install_dir)
+        FileUtils.mkdir_p(install_dir)
+
+        File.open(package, "rb") do |io|
+          Zlib::GzipReader.wrap(io) do |gz|
+            Gem::Package::TarReader.new(gz) do |tar|
+              tar.each do |entry|
+                path = File.join(install_dir, entry.full_name)
+                if entry.directory?
+                  FileUtils.mkdir_p(path)
+                else
+                  File.open(path, "wb") { |f| f.write(entry.read) }
+                end
+
+                File.chmod(entry.header.mode, path)
               end
             end
           end
