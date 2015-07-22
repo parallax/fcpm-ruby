@@ -1,3 +1,5 @@
+require 'rubygems/package'
+
 module FCPM
   module Ruby
 
@@ -12,15 +14,13 @@ module FCPM
             cache_dir = File.dirname(spec.cached_file)
             FileUtils.mkdir_p(cache_dir)
             File.open(spec.cached_file, "wb") { |f| f.write(body) }
-          rescue OpenURI::HTTPError
+          rescue OpenURI::HTTPError, Errno::ENOENT
             puts "no remote cached instance at #{uri}"
           end
         end
 
         if spec.cached_file_exists?
-          # extract gem file from cached install
-          system("tar -xzf #{spec.cached_file} -C #{Gem.dir} cache/#{spec.full_name}.gem")
-          File.join(Gem.dir, "cache", spec.full_name + ".gem")
+          _extract_gem(spec.cached_file, spec, File.join(Gem.dir, "cache"))
         else
           super
         end
@@ -34,6 +34,24 @@ module FCPM
         else
           raise NotImplementedError, "can't read from #{uri}"
         end
+      end
+
+      def _extract_gem(package, spec, destination)
+        gem_file = "#{spec.full_name}.gem"
+        gem_path = File.join(destination, gem_file)
+
+        File.open(package, "rb") do |io|
+          Zlib::GzipReader.wrap(io) do |gz|
+            Gem::Package::TarReader.new(gz) do |tar|
+              tar.seek(File.join("cache", gem_file)) do |gem|
+                File.open(gem_path, "wb") { |f| f.write(gem.read) }
+                File.chmod(gem.header.mode, gem_path)
+              end
+            end
+          end
+        end
+
+        gem_path
       end
 
     end
