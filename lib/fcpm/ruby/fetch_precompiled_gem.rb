@@ -4,6 +4,7 @@ module FCPM
   module Ruby
 
     module FetchPrecompiledGem
+      include Gem::DefaultUserInteraction
 
       def fetch_gem(spec)
         if !spec.cached_file_exists? && FCPM::Ruby.config['source']
@@ -28,7 +29,12 @@ module FCPM
 
       def _read_from_uri(uri)
         if uri.respond_to?(:read)
-          uri.read
+          reporter = ui.download_reporter(STDOUT)
+          setup = ->(length) { reporter.fetch(File.basename(uri.path), length) }
+          progress = ->(size) { reporter.update(size) }
+          uri.read(content_length_proc: setup, progress_proc: progress).tap do
+            reporter.done
+          end
         elsif uri.scheme == "file"
           File.read(uri.path)
         else
@@ -43,7 +49,7 @@ module FCPM
         File.open(package, "rb") do |io|
           Zlib::GzipReader.wrap(io) do |gz|
             Gem::Package::TarReader.new(gz) do |tar|
-              tar.seek(File.join("cache", gem_file)) do |gem|
+              tar.seek(File.join("./cache", gem_file)) do |gem|
                 File.open(gem_path, "wb") { |f| f.write(gem.read) }
                 File.chmod(gem.header.mode, gem_path)
               end

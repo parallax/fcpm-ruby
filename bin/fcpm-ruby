@@ -7,6 +7,5 @@ require 'fcpm/ruby'
 
 require 'bundler/friendly_errors'
 Bundler.with_friendly_errors do
-  require 'bundler/cli'
-  Bundler::CLI.start(ARGV, :debug => true)
+  FCPM::Ruby::CLI.start(ARGV, :debug => true)
 end
