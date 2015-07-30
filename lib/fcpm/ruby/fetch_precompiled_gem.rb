@@ -16,7 +16,7 @@ module FCPM
             FileUtils.mkdir_p(cache_dir)
             File.open(spec.cached_file, "wb") { |f| f.write(body) }
           rescue OpenURI::HTTPError, Errno::ENOENT
-            puts "no remote cached instance at #{uri}"
+            # nothing in the cache; just fall through
           end
         end
 

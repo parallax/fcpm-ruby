@@ -63,6 +63,26 @@ module FCPM
         end
       end
 
+      def tty?
+        false
+      end
+
+      def say(statement)
+        @outs.puts "say|#{statement}"
+      end
+
+      def alert(statement, question=nil)
+        @outs.puts "info|#{statement}"
+      end
+
+      def alert_warning(statement, question=nil)
+        @errs.puts "warn|#{statement}"
+      end
+
+      def alert_error(statement, question=nil)
+        @errs.puts "error|#{statement}"
+      end
+
       def progress_reporter(*args)
         BackendProgressReporter.new(@outs, *args)
       end
