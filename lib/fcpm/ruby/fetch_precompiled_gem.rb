@@ -49,7 +49,7 @@ module FCPM
         File.open(package, "rb") do |io|
           Zlib::GzipReader.wrap(io) do |gz|
             Gem::Package::TarReader.new(gz) do |tar|
-              tar.seek(File.join("./cache", gem_file)) do |gem|
+              tar.seek(File.join("cache", gem_file)) do |gem|
                 File.open(gem_path, "wb") { |f| f.write(gem.read) }
                 File.chmod(gem.header.mode, gem_path)
               end

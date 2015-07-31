@@ -6,7 +6,6 @@ module FCPM
   module Ruby
 
     module InstallPrecompiledGem
-
       def install
         if !spec.cached_file_exists?
           old_install_dir = @install_dir
@@ -17,7 +16,9 @@ module FCPM
           FileUtils.mkdir_p(temp_path)
 
           @install_dir = @gem_home = temp_path
+          ui.outs.puts "build|#{spec.name}|start"
           super
+          ui.outs.puts "build|#{spec.name}|finish"
           @install_dir, @gem_home = old_install_dir, old_gem_home
 
           _build_package(temp_path, spec.cached_file)
@@ -37,6 +38,8 @@ module FCPM
       end
 
       def _push_build_to_host(filename)
+        ui.outs.puts "store|#{filename}|start"
+
         host = FCPM::Ruby.config['host'] or return
         uri = URI.parse(host)
 
@@ -45,6 +48,8 @@ module FCPM
         when "scp"  then _push_build_to_scp_host(uri, filename)
         else raise "unsupported host scheme: #{uri}"
         end
+
+        ui.outs.puts "store|#{filename}|finish"
       end
 
       def _push_build_to_file_host(uri, filename)
@@ -58,11 +63,13 @@ module FCPM
         path = uri.path
 
         Net::SCP.upload!(host, user, filename, path,
-          ssh: { keys: [ FCPM.config['key'] ],
+          ssh: { keys: [ FCPM::Ruby.config['key'] ],
                  verbose: :warn })
       end
 
       def _build_package(root, target)
+        ui.outs.puts "archive|#{target}|start"
+
         dir = File.dirname(target)
         root = root + "/" unless root[-1] == "/"
 
@@ -97,9 +104,13 @@ module FCPM
             end
           end
         end
+
+        ui.outs.puts "archive|#{target}|finish"
       end
 
       def _unpack_package(package, install_dir)
+        ui.outs.puts "install|#{package}|start"
+
         FileUtils.mkdir_p(install_dir)
 
         File.open(package, "rb") do |io|
@@ -118,6 +129,8 @@ module FCPM
             end
           end
         end
+
+        ui.outs.puts "install|#{package}|finish"
       end
     end
 
